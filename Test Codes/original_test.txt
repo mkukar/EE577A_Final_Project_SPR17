@@ -17,3 +17,4 @@ ANDI $1 $2 #7C4DH
 AND $1 $2 $3
 ADDI $1 $2 #1A2BH
 MULI $1 $2 #1FH
+MULT $2 $3 $1

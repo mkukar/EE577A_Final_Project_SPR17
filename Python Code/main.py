@@ -17,7 +17,6 @@ codeFileName = "code.txt"
 vecFileName = "vec.txt"
 goldenResultsFileName = "golden_results.txt"
 
-
 # vector header info
 radix = [1]
 io = ['i']
@@ -96,6 +95,116 @@ def compileCode(fileNameIn):
 				# STOREI {bl} xxH #xxxx {#xxxx}
 				print("STOREI IN PROGRESS")
 				# generates multiple consecutive instructions
+
+
+				# needs to check if this is a burst instruction first (length > 3)
+				if len(wordsInLine) == 7: # BL == 4
+					# must be BL == 4
+					if int(wordsInLine[1]) == 4:
+						zValInt = 0 # not needed for this
+						# STOREI 1 xxH #xxxx #xxxx (four instructions, must start at #...00B)
+						print("BL == 4 IP")
+						# first checks addr
+						xValInt = checkIfAddrAndReturn(wordsInLine[2])
+						if xValInt == -1:
+							opcode = handleBadInputArg(wordsInLine[2])
+						# now checks the four values and generates four new instructions
+						yValInt = checkIfAddrAndReturn(wordsInLine[3])
+						if yValInt == -1:
+							opcode = handleBadInputArg(wordsInLine[3])
+						elif int(wordsInLine[3][-2]) != 0 or int(wordsInLine[3][-3]) != 0: # must start at 00
+							opcode = instrToOpCode['NOP']
+							decodedInstr.append([opcode, 0, 0, 0]) # puts in a blank instruction
+							print("Error001: Command " + str(line.strip()) + " is not aligned properly.")
+						else:
+							decodedInstr.append([opcode, xValInt, yValInt, zValInt])
+							# now continues to next instruction
+							yValInt = checkIfAddrAndReturn(wordsInLine[4])
+							if yValInt == -1:
+								opcode = checkIfNumAndReturn(wordsInLine[4])
+							elif int(wordsInLine[4][-2]) != 0 or int(wordsInLine[4][-3]) != 1:
+								opcode = instrToOpCode['NOP']
+								decodedInstr.append([opcode, 0, 0, 0]) # puts in a blank instruction
+								print("Error001: Command " + str(line.strip()) + " is not aligned properly.")
+							else:
+								decodedInstr.append([opcode, xValInt, yValInt, zValInt])
+								# now to the third instruction
+								yValInt = checkIfAddrAndReturn((wordsInLine[5]))
+								if yValInt == -1:
+									opcode = checkIfAddrAndReturn(wordsInLine[5])
+								elif int(wordsInLine[5][-2]) != 1 or int(wordsInLine[5][-3]) != 0:
+									opcode = instrToOpCode['NOP']
+									decodedInstr.append([opcode, 0, 0, 0])
+									print("Error001: Command " + str(line.strip()) + " is not aligned properly.")
+								else:
+									decodedInstr.append([opcode, xValInt, yValInt, zValInt])
+									# final instruction
+									yValInt = checkIfAddrAndReturn(wordsInLine[6])
+									if yValInt == -1:
+										opcode = checkIfAddrAndReturn(wordsInLine[6])
+									elif int(wordsInLine[5][-2]) != 1 or int(wordsInLine[5][-3]) != 1:
+										opcode = instrToOpCode['NOP']
+										print("Error001: Command " + str(line.strip()) + " is not aligned properly.")
+
+					else:
+						opcode = instrToOpCode['NOP']
+						print("Error000: Command " + str(line.strip()) + " has invalid burst length.")
+
+				elif len(wordsInLine) == 5: # BL == 2
+					# STOREI 1 xxH #xxxx #xxxx (two instructions, must start at #...0B)
+					if int(wordsInLine[1]) == 2:
+						zValInt = 0 # not needed for this
+						# first checks addr
+						xValInt = checkIfAddrAndReturn(wordsInLine[2])
+						if xValInt == -1:
+							opcode = handleBadInputArg(wordsInLine[2])
+						# now checks the two values and generates two new instructions
+						yValInt = checkIfNumAndReturn(wordsInLine[3])
+						if yValInt == -1:
+							opcode = handleBadInputArg(wordsInLine[3])
+						elif int(wordsInLine[3][-2]) != 0:
+							opcode = instrToOpCode['NOP']
+							decodedInstr.append([opcode, 0, 0, 0]) # puts in a blank instruction
+							print("Error001: Command " + str(line.strip()) + " is not aligned properly.")
+						else:
+							decodedInstr.append([opcode, xValInt, yValInt, zValInt]) # creates first instruction
+							yValInt = checkIfNumAndReturn(wordsInLine[4])
+							if yValInt == -1:
+								opcode = handleBadInputArg(wordsInLine[4])
+							elif int(wordsInLine[4][-2]) != 1:
+								print(int(wordsInLine[4][-2]))
+								opcode = instrToOpCode['NOP']
+								decodedInstr.append([opcode, 0, 0, 0]) # puts in a blank instruction
+								print("Error001: Command " + str(line.strip()) + " is not aligned properly.")
+							# doesnt need to append this time since it'll naturally do the command at the end
+
+					else:
+						opcode = instrToOpCode['NOP']
+						print("Error000: Command " + str(line.strip()) + " has invalid burst length.")
+				elif len(wordsInLine) == 4: # should be BL = 1
+					# STOREI 1 xxH #xxxx
+					if int(wordsInLine[1]) == 1:
+						xValInt = checkIfAddrAndReturn(wordsInLine[2])
+						if xValInt == -1:
+							opcode = handleBadInputArg(wordsInLine[2])
+						yValInt = checkIfNumAndReturn(wordsInLine[3])
+						if yValInt == -1:
+							opcode = handleBadInputArg(wordsInLine[3])
+						zValInt = 0
+					else:
+						opcode = instrToOpCode['NOP']
+						print("Error000: Command " + str(line.strip()) + " has invalid burst length.")
+				elif len(wordsInLine) == 3:
+					# STOREI xxH #xxxx
+					xValInt = checkIfAddrAndReturn(wordsInLine[1])
+					if xValInt == -1:
+						opcode = handleBadInputArg(wordsInLine[1])
+					yValInt = checkIfNumAndReturn(wordsInLine[2])
+					if yValInt == -1:
+						opcode = handleBadInputArg(wordsInLine[1])
+					zValInt = 0
+				else:
+					opcode = handleBadInputSize(len(wordsInLine))
 
 			elif opcode == instrToOpCode['STORE']: #STORE
 				# STORE xxH $R
@@ -383,8 +492,10 @@ def compileCode(fileNameIn):
 
 	codeFile.close()
 
-	# NOW THAT WE HAVE THE VECTOR INPUTS IN ORDER, WE CHECK FOR DATA DEPENDENCIES AND RESCHEDULE ACCORDINGLY
-	print("Dependency checking in progress. Currently not supported (Don't write bad code or use multiplier)")
+
+	# now checks for dependencies
+	checkDependenciesAndOptimize()
+
 
 def generateVectorFile(fileNameIn):
 	# now we know that the inputs are valid and in the correct order after being compiled
@@ -477,6 +588,23 @@ def generateVectorFile(fileNameIn):
 		counter += 1
 
 	vecFile.close()
+
+# checks for any code dependencies (multiplier OoO execution, etc.) and solves them
+def checkDependenciesAndOptimize():
+	global decodedInstr
+	# NOW THAT WE HAVE THE VECTOR INPUTS IN ORDER, WE CHECK FOR DATA DEPENDENCIES AND RESCHEDULE ACCORDINGLY
+	print("Dependency checking in progress. Do not expect ideal results.")
+
+	# now we'll first check for basic multiplier dependencies (the multiplier gets 2 NOPs after it)
+	for x in range(len(decodedInstr)):
+		instr = decodedInstr[x]
+		if instr[0] == instrToOpCode['MUL'] or instr[0] == instrToOpCode['MULI']:
+			# for now we'll insert just a few NOPS before this instruction to prevent any dependencies (mult takes 4 cycles, ex takes 1)
+			noOpInstr = [instrToOpCode['NOP'], 0, 0, 0]
+			#print("INSERTING NOPS")
+			decodedInstr.insert(x, noOpInstr)
+			decodedInstr.insert(x, noOpInstr)
+			decodedInstr.insert(x, noOpInstr)
 
 
 # more of a stretch goal to create verifiable output that can be compared to later

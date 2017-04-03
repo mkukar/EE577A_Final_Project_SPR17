@@ -16,7 +16,7 @@ csvFileName = 'out1.csv'
 resultsFileName = 'actual_results.txt'
 clockPeriod = 1.0e-9 # in seconds
 
-resultsArr = [[0,0]] # pairs matching clock # to the value seen (start with 0,0)
+resultsArr = [] # pairs matching clock # to the value seen (start with 0,0)
 
 # #
 # FUNCTIONS
@@ -29,7 +29,7 @@ def readCSV(filenameIn):
 	clockCounter = 0
 	for row in reader:
 		# checks value right after the clock (e.g. if its 1ns clock, looks at value at >1ns, >2ns, etc.)
-		if str(row['/en[0] Y']).strip() != '':
+		if str(row['/en[0] Y']).strip() != '': # ignores empty lines
 			if float(row['/en[0] Y']) > clockCounter * clockPeriod:
 				# now we check if we're writing to $0 (en[7:0] == 0)
 				allZeros = True
@@ -51,10 +51,10 @@ def readCSV(filenameIn):
 def writeResults(filenameIn):
 	resultsFile = open(filenameIn, 'w')
 
-	resultsFile.write("CLOCK #\t$0 VALUE\n")
+	resultsFile.write("CLOCK #\t\t$0 VALUE\n")
 
 	for res in resultsArr:
-		resultsFile.write(str(res[0]) + '\t\t' + str(res[1]) + '\n')
+		resultsFile.write(str(res[0]) + '\t\t\t' + str(res[1]) + '\n')
 
 	resultsFile.close()
 # #

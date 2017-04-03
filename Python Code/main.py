@@ -14,7 +14,7 @@ debugModeOn = True # prints out a lot of extra info for debugging. Turn off for 
 # filename variables
 configFileName = "config.txt"
 codeFileName = "code.txt"
-vecFileName = "vec.txt"
+vecFileName = "vector_file.vec"
 goldenResultsFileName = "golden_results.txt"
 
 # vector header info
@@ -28,7 +28,7 @@ vname = ['clk', 'clk_bar', 'NO_OP_in', 'OP_in[[3:0]]', 'ADDR_in[4]', 'ADDR_in[[3
 slope = 0.01
 vih = 1.8
 tunit = "ns"
-clockPeriod = 1 # given in tunit, default is this
+clockPeriod = 2 # given in tunit, default is this
 
 # op codes map to their instruction
 instrToOpCode = {

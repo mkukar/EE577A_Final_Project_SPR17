@@ -18,9 +18,13 @@ vecFileName = "vec.txt"
 goldenResultsFileName = "golden_results.txt"
 
 # vector header info
-radix = [1]
-io = ['i']
-vname = ['CLK', 'OPCODE<4>', 'OPCODE<[3:0]>', 'X<4>', 'X<[3:0]>', 'Y<4>', 'Y<[3:0]>', 'Z<[15:12]>', 'Z<[11:8]>', 'Z<[7:4]>', 'Z<[3:0]>']
+radix = [1, 1, 1, 4, 1, 4, 1, 1, 1, 4, 4, 4, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+io = ['i'] * 23 # all inputs
+vname = ['clk', 'clk_bar', 'NO_OP_in', 'OP_in[[3:0]]', 'ADDR_in[4]', 'ADDR_in[[3:0]]',
+		 'Dest_Reg_Addr_In[2]', 'Dest_Reg_Addr_In[1]', 'Dest_Reg_Addr_In[0]',
+		 'Immediate_data[[15:12]]', 'Immediate_data[[11:8]]', 'Immediate_data[[7:4]]', 'Immediate_data[[3:0]]',
+		 'SRAM_precharge_en_in', 'SRAM_read_en_in', 'SRAM_write_en_in', 'reset', 'RegID_IF2[2]', 'RegID_IF2[1]', 'RegID_IF2[0]',
+		 'Reg_ID_IF1[2]', 'Reg_ID_IF1[1]', 'Reg_ID_IF1[0]']
 slope = 0.01
 vih = 1.8
 tunit = "ns"
@@ -28,23 +32,23 @@ clockPeriod = 1 # given in tunit, default is this
 
 # op codes map to their instruction
 instrToOpCode = {
-	'NOP': 0,
-	'STOREI': 1,
-	'STORE': 2,
-	'LOADI': 3,
-	'LOAD': 4,
-	'AND': 5,
-	'ANDI': 6,
-	'OR': 7,
-	'ORI': 8,
-	'ADD': 9,
-	'ADDI': 10,
-	'MUL': 11,
+	'NOP': 16,
+	'STOREI': 14,
+	'STORE': 15,
+	'LOADI': 0,
+	'LOAD': 1,
+	'AND': 3,
+	'ANDI': 2,
+	'OR': 5,
+	'ORI': 4,
+	'ADD': 7,
+	'ADDI': 6,
+	'MUL': 13,
 	'MULI': 12,
-	'MIN': 13,
-	'MINI': 14,
-	'SFL': 15,
-	'SFR': 16
+	'MIN': 11,
+	'MINI': 10,
+	'SFL': 8,
+	'SFR': 9
 }
 
 
@@ -497,10 +501,12 @@ def compileCode(fileNameIn):
 	checkDependenciesAndOptimize()
 
 
+
 def generateVectorFile(fileNameIn):
-	# now we know that the inputs are valid and in the correct order after being compiled
-	# goes through each input and writes it out to the vector file correctly
-	# each instruction gets exactly 1 clock (NOTE - NEED TO CHECK ABOUT PRECHARGING TO READ SRAM)
+	# now we have the instruction, the destination, and the operands. This allows us to generate the correct inputs
+	# for every given situation
+
+
 	vecFile = open(fileNameIn, 'w')
 
 	# first writes out header
@@ -519,75 +525,145 @@ def generateVectorFile(fileNameIn):
 	vecFile.write('\n\n')
 
 	# now loops through each instruction and writes it out
-	counter = 0
+	counter = 0.0
+	# first instruction is RESET for the registers
+	writeSingleInstruction([instrToOpCode['NOP'],0,0,0], vecFile, counter, 0, 0, 0, 0, 0) # assumes reset is active LOW
+	counter += 1.0
+	writeSingleInstruction([instrToOpCode['NOP'],0,0,0], vecFile, counter, 1, 0, 0, 0, 0)
+	counter += 1.0
 	for instr in decodedInstr:
-		# writes out time
-		vecFile.write(str(counter * clockPeriod) + '\t')
-		# now writes out clock
-		vecFile.write('0\t')
-		# now writes out data
 
-		# op code is 5 bits, 1 binary (should be 0 or 1 in hex too) and 4 bit hex (1 hex digit)
-		hexStr = hex(instr[0])[2:]
-		# needs to make sure hex string has two bits
-		if len(hexStr) == 1:
-			hexStr = '0' + hexStr
-		vecFile.write(hexStr[0] + "\t" + hexStr[1] + '\t')
+		writeSingleInstruction(instr, vecFile, counter, 0, 1, 0, 0, 1) # precharge state for half of clock LOW
+		counter += 0.5
 
-		# x value is 5 bits at most (if it is an address)
-		hexStr = hex(instr[1])[2:]
-		if len(hexStr) == 1:
-			hexStr = '0' + hexStr
-		vecFile.write(hexStr[0] + '\t' + hexStr[1] + '\t')
+		# if instruction is STORE or STOREI, we write to SRAM.
+		if instr[0] == instrToOpCode['STORE'] or instr[0] == instrToOpCode['STOREI']:
+			writeSingleInstruction(instr, vecFile, counter, 0, 0, 0, 1, 1)
+		# if instruction is LOAD, we read from SRAM
+		elif instr[0] == instrToOpCode['LOAD']:
+			writeSingleInstruction(instr, vecFile, counter, 0, 0, 1, 0, 1)
+		# otherwise no read or write
+		else:
+			writeSingleInstruction(instr, vecFile, counter, 0, 0, 0, 0, 1)
 
-		# y value is same as x value
-		hexStr = hex(instr[2])[2:]
-		if len(hexStr) == 1:
-			hexStr = '0' + hexStr
-		vecFile.write(hexStr[0] + '\t' + hexStr[1] + '\t')
+		counter += 0.5
 
-		# z value can have up to 4 hex digits
-		hexStr = hex(instr[3])[2:]
-		while len(hexStr) < 4: # must have 4 digits
-			hexStr = '0' + hexStr
-		vecFile.write(hexStr[0] + '\t' + hexStr[1] + '\t' + hexStr[2] + '\t' + hexStr[3] + '\t')
+		# now writes a full clock HIGH
+		# if instruction is STORE or STOREI, we write to SRAM.
+		if instr[0] == instrToOpCode['STORE'] or instr[0] == instrToOpCode['STOREI']:
+			writeSingleInstruction(instr, vecFile, counter, 1, 0, 0, 1, 1)
+		# if instruction is LOAD, we read from SRAM
+		elif instr[0] == instrToOpCode['LOAD']:
+			writeSingleInstruction(instr, vecFile, counter, 1, 0, 1, 0, 1)
+		# otherwise no read or write
+		else:
+			writeSingleInstruction(instr, vecFile, counter, 1, 0, 0, 0, 1)
 
-		vecFile.write('\n')
-
-		# now writes out time and clock again (for clock == 1)
-		counter += 1
-		vecFile.write(str(counter * clockPeriod) + '\t')
-		vecFile.write('1\t')
-		# op code is 5 bits, 1 binary (should be 0 or 1 in hex too) and 4 bit hex (1 hex digit)
-		hexStr = hex(instr[0])[2:]
-		# needs to make sure hex string has two bits
-		if len(hexStr) == 1:
-			hexStr = '0' + hexStr
-		vecFile.write(hexStr[0] + "\t" + hexStr[1] + '\t')
-
-		# x value is 5 bits at most (if it is an address)
-		hexStr = hex(instr[1])[2:]
-		if len(hexStr) == 1:
-			hexStr = '0' + hexStr
-		vecFile.write(hexStr[0] + '\t' + hexStr[1] + '\t')
-
-		# y value is same as x value
-		hexStr = hex(instr[2])[2:]
-		if len(hexStr) == 1:
-			hexStr = '0' + hexStr
-		vecFile.write(hexStr[0] + '\t' + hexStr[1] + '\t')
-
-		# z value can have up to 4 hex digits
-		hexStr = hex(instr[3])[2:]
-		while len(hexStr) < 4: # must have 4 digits
-			hexStr = '0' + hexStr
-		vecFile.write(hexStr[0] + '\t' + hexStr[1] + '\t' + hexStr[2] + '\t' + hexStr[3] + '\t')
-
-		vecFile.write('\n')
-
-		counter += 1
+		counter += 1.0 # no half-clocking here
 
 	vecFile.close()
+
+# writes out a single instruction code to the file input (handles clocks, etc.)
+def writeSingleInstruction(instr, vecFile, counter, clock, precharge, sram_read, sram_write, reset):
+	# counter first to keep track of time
+	vecFile.write(str(counter * clockPeriod) + '\t')
+
+	# now clock and clock bar
+	if clock == 0:
+		vecFile.write('0\t1\t')
+	else:
+		vecFile.write('1\t0\t')
+
+	# first is if this is a no-op
+	if instr[0] == instrToOpCode['NOP']:
+		vecFile.write('1\t0\t')
+	else:
+		vecFile.write('0\t')
+		# now writes proper op code out since it is something else
+		vecFile.write(hex(instr[0])[2:].upper())
+		vecFile.write('\t')
+
+	# now writes address (if it exists, otherwise write 0 to it)
+	firstBit = 0
+	nextFour = 0
+	if instr[0] == instrToOpCode['STORE'] or instr[0] == instrToOpCode['STOREI']:
+		firstBit = (instr[1] & 16) >> 4
+		nextFour = instr[1] & 15
+	elif instr[0] == instrToOpCode['LOAD']:
+		firstBit = (instr[2] & 16) >> 4
+		nextFour = instr[2] & 15
+	vecFile.write(str(firstBit) + '\t' + hex(nextFour)[2:].upper() + '\t')
+
+	# now destination register in (if it exists)
+	firstBit = 0
+	secondBit = 0
+	thirdBit = 0
+	if instr[0] != instrToOpCode['STORE'] and instr[0] != instrToOpCode['STOREI']:
+		firstBit = (instr[1] & 4) >> 2
+		secondBit = (instr[1] & 2) >> 1
+		thirdBit = instr[1] & 1
+	vecFile.write(str(firstBit) + '\t' + str(secondBit) + '\t' + str(thirdBit) + '\t')
+
+	# now writes immediate data (if exists)
+	hexRep = '0000'
+	if (instr[0] % 2 == 0 and instr[0] != instrToOpCode['NOP']) or instr[0] == instrToOpCode['SFL'] or instr[0] == instrToOpCode['SFR']:
+		if instr[0] != instrToOpCode['LOADI'] and instr[0] != instrToOpCode['STOREI']:
+			# always is the 'z' value except for LOADI and STOREI in which it is the 'y' value
+			hexRep = hex(instr[3])[2:].upper()
+		else:
+			hexRep = hex(instr[2])[2:].upper()
+	while len(hexRep) < 4:
+		hexRep = '0' + hexRep
+	for x in range(4):
+		print("HEX REP IS " + str(hexRep))
+		vecFile.write(hexRep[x] + '\t')
+
+	# now writes out SRAM values
+	# precharge
+	vecFile.write(str(precharge) + '\t')
+	# read
+	vecFile.write(str(sram_read) + '\t')
+	# write
+	vecFile.write(str(sram_write) + '\t')
+
+	# reset command (resets registers)
+	vecFile.write(str(reset) + '\t')
+
+	# now writes out register Y (IF2)
+
+	# exists on all operations that arent load or store or NOP
+	firstBit = 0
+	secondBit = 0
+	thirdBit = 0
+	if instr[0] != instrToOpCode['LOAD'] and instr[0] != instrToOpCode['LOADI'] and instr[0] != instrToOpCode['STORE'] and instr[0] != instrToOpCode['STOREI'] and instr[0] != instrToOpCode['NOP']:
+		firstBit = (instr[2] & 4) >> 2
+		secondBit = (instr[2] & 2) >> 1
+		thirdBit = (instr[2] & 1)
+	vecFile.write(str(firstBit) + '\t' + str(secondBit) + '\t' + str(thirdBit) + '\t')
+
+	# now writes out register Z (IF1) if it exists (only exists if not an immediate command)
+	firstBit = 0
+	secondBit = 0
+	thirdBit = 0
+	if instr[0] % 2 == 1 and instr[0] != instrToOpCode['LOAD'] and instr[0] != instrToOpCode['SFL'] and instr[0] != instrToOpCode['SFR']:
+		# uses the z value by default
+		if instr[0] != instrToOpCode['STORE']:
+			firstBit = (instr[3] & 4) >> 2
+			secondBit = (instr[3] & 2) >> 1
+			thirdBit = (instr[3] & 1)
+		# store uses the 'y' value
+		else:
+			firstBit = (instr[2] & 4) >> 2
+			secondBit = (instr[2] & 2) >> 1
+			thirdBit = (instr[2] & 1)
+	vecFile.write(str(firstBit) + '\t' + str(secondBit) + '\t' + str(thirdBit) + '\t')
+
+
+	# writes new line
+	vecFile.write('\n')
+
+
+
 
 # checks for any code dependencies (multiplier OoO execution, etc.) and solves them
 def checkDependenciesAndOptimize():

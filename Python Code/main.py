@@ -20,15 +20,15 @@ goldenResultsFileName = "golden_results.txt"
 # vector header info
 radix = [1, 1, 1, 4, 1, 4, 1, 1, 1, 4, 4, 4, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 io = ['i'] * 23 # all inputs
-vname = ['clk', 'clk_bar', 'NO_OP_in', 'OP_in[[3:0]]', 'ADDR_in[4]', 'ADDR_in[[3:0]]',
-		 'Dest_Reg_Addr_In[2]', 'Dest_Reg_Addr_In[1]', 'Dest_Reg_Addr_In[0]',
-		 'Immediate_data[[15:12]]', 'Immediate_data[[11:8]]', 'Immediate_data[[7:4]]', 'Immediate_data[[3:0]]',
-		 'SRAM_precharge_en_in', 'SRAM_read_en_in', 'SRAM_write_en_in', 'reset', 'RegID_IF2[2]', 'RegID_IF2[1]', 'RegID_IF2[0]',
-		 'Reg_ID_IF1[2]', 'Reg_ID_IF1[1]', 'Reg_ID_IF1[0]']
+vname = ['CLK', 'CLK_B', 'NO_OP_IN', 'OP_IN<[3:0]>', 'ADDR_IN<4>', 'ADDR_IN<[3:0]>',
+		 'DEST_REG_ADDR_IN<2>', 'DEST_REG_ADDR_IN<1>', 'DEST_REG_ADDR_IN<0>',
+		 'IMMEDIATE_DATA<[15:12]>', 'IMMEDIATE_DATA<[11:8]>', 'IMMEDIATE_DATA<[7:4]>', 'IMMEDIATE_DATA<[3:0]>',
+		 'PRECHARGE', 'READ_EN', 'WRITE_EN', 'RESET', 'REGID_IF2<2>', 'REGID_IF2<1>', 'REGID_IF2<0>',
+		 'REGID_IF1<2>', 'REGID_IF1<1>', 'REGID_IF1<0>']
 slope = 0.01
 vih = 1.8
 tunit = "ns"
-clockPeriod = 2 # given in tunit, default is this
+clockPeriod = 10 # given in tunit, default is this
 
 # op codes map to their instruction
 instrToOpCode = {
@@ -561,6 +561,13 @@ def generateVectorFile(fileNameIn):
 
 		counter += 1.0 # no half-clocking here
 
+	# adds a 5 dummy clocks to finish out the simulation
+	for x in range(5):
+		writeSingleInstruction([instrToOpCode['NOP'], 0, 0, 0], vecFile, counter, 0, 0, 0, 0, 1)
+		counter += 1.0
+		writeSingleInstruction([instrToOpCode['NOP'], 0, 0, 0], vecFile, counter, 1, 0, 0, 0, 1)
+		counter += 1.0
+
 	vecFile.close()
 
 # writes out a single instruction code to the file input (handles clocks, etc.)
@@ -615,7 +622,7 @@ def writeSingleInstruction(instr, vecFile, counter, clock, precharge, sram_read,
 	while len(hexRep) < 4:
 		hexRep = '0' + hexRep
 	for x in range(4):
-		print("HEX REP IS " + str(hexRep))
+		#print("HEX REP IS " + str(hexRep))
 		vecFile.write(hexRep[x] + '\t')
 
 	# now writes out SRAM values

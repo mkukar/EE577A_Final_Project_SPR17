@@ -55,7 +55,7 @@ instrToOpCode = {
 # decoded instruction vector
 # holds the instruction in the form [OPCODE(int), X(int), Y(int), Z(int)]
 decodedInstr = [
-	[0,0,0,0] # starts filled with a NO-OP to initialize everything
+	[instrToOpCode['NOP'],0,0,0] # starts filled with a NO-OP to initialize everything
 ]
 
 

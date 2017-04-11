@@ -690,9 +690,13 @@ def checkDependenciesAndOptimize():
 			if instr[0] == instrToOpCode['MUL'] or instr[0] == instrToOpCode['MULI']:
 				# for now we'll insert just a few NOPS before this instruction to prevent any dependencies (mult takes 4 cycles, ex takes 1)
 				#print("INSERTING NOPS")
+				# realistically need a NOP in the 3rd and the other first two are not required unless there is some data dependency (solved by next step anyways)
 				decodedInstr.insert(x, noOpInstr)
 				decodedInstr.insert(x, noOpInstr)
 				decodedInstr.insert(x, noOpInstr)
+
+				# UNTESTED IDEA FOLLOWS:
+				# decodedInstr.insert(x+2, noOpInstr)
 				insertedNoOp = True # makes sure we iterate across the entire list until no more dependencies exist (changes list length)
 
 		if not insertedNoOp:
@@ -708,39 +712,33 @@ def checkDependenciesAndOptimize():
 		# if there is a write instruction to a register, we must keep track for 5 clock cycles afterwards
 		for x in range(len(decodedInstr)):
 			instr = decodedInstr[x]
-			if instr[0] == instrToOpCode['LOAD'] or instr[0] == instrToOpCode['LOADI']:
+			# all instructions have a register destination (WRITE) except STORE[I]
+			if instr[0] != instrToOpCode['STORE'] or instr[0] != instrToOpCode['STOREI']:
 				# now checks 5 instructions ahead
 				depReg = instr[1]
 				instrInserted = 0
 				# only checks to the end or to 5 farther instructions, whichever is less
-				print("LENGTH IS " + str(len(decodedInstr)))
-				print("X IS " + str(x))
+				# print("LENGTH IS " + str(len(decodedInstr)))
+				# print("X IS " + str(x))
 				depCounterMax = 4
 				if len(decodedInstr) < x + 4:
 					depCounterMax = len(decodedInstr) - x - 1
-					print("Setting length to " + str(depCounterMax))
+					# print("Setting length to " + str(depCounterMax))
 				for depCounter in range(depCounterMax):
-					print("DEP COUNTER IS " + str(depCounter))
+					# print("DEP COUNTER IS " + str(depCounter))
 					instrToCheck = decodedInstr[x + depCounter + 1 + instrInserted]
 					if depReg in instrToCheck:
-						if depReg != instrToCheck[1]: # makes sure reg isn't the destination
+						if depReg != instrToCheck[1]: # makes sure reg isn't the destination (ignore WAW)
 							instrInserted += 1
 							decodedInstr.insert(x+depCounter, noOpInstr)
-							print("INSERTED NOP")
+							# print("INSERTED NOP")
 							insertedNoOp = True
 		if not insertedNoOp:
 			break
 
 	# PRINTS EVERYTHING OUT FOR DEBUG
-	for x in range(len(decodedInstr)):
-		print(decodedInstr[x])
-
-
-
-
-	# write after read doesn't happen since we're not forwarding
-
-	# write after write does affect us
+	for instr in decodedInstr:
+		print(instr)
 
 
 

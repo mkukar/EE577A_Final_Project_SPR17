@@ -678,21 +678,75 @@ def checkDependenciesAndOptimize():
 	# NOW THAT WE HAVE THE VECTOR INPUTS IN ORDER, WE CHECK FOR DATA DEPENDENCIES AND RESCHEDULE ACCORDINGLY
 	print("Dependency checking in progress. Do not expect ideal results.")
 
-	# now we'll first check for basic multiplier dependencies (the multiplier gets 2 NOPs after it)
+	noOpInstr = [instrToOpCode['NOP'], 0, 0, 0]
+	insertedNoOp = False
+	while True:
+
+		insertedNoOp = False
+
+		# now we'll first check for basic multiplier dependencies (the multiplier gets 2 NOPs after it)
+		for x in range(len(decodedInstr)):
+			instr = decodedInstr[x]
+			if instr[0] == instrToOpCode['MUL'] or instr[0] == instrToOpCode['MULI']:
+				# for now we'll insert just a few NOPS before this instruction to prevent any dependencies (mult takes 4 cycles, ex takes 1)
+				#print("INSERTING NOPS")
+				decodedInstr.insert(x, noOpInstr)
+				decodedInstr.insert(x, noOpInstr)
+				decodedInstr.insert(x, noOpInstr)
+				insertedNoOp = True # makes sure we iterate across the entire list until no more dependencies exist (changes list length)
+
+		if not insertedNoOp:
+			break
+
+	insertedNoOp = False
+
+	while True:
+
+		insertedNoOp = False
+
+		# now we'll check for READ after WRITE dependencies
+		# if there is a write instruction to a register, we must keep track for 5 clock cycles afterwards
+		for x in range(len(decodedInstr)):
+			instr = decodedInstr[x]
+			if instr[0] == instrToOpCode['LOAD'] or instr[0] == instrToOpCode['LOADI']:
+				# now checks 5 instructions ahead
+				depReg = instr[1]
+				instrInserted = 0
+				# only checks to the end or to 5 farther instructions, whichever is less
+				print("LENGTH IS " + str(len(decodedInstr)))
+				print("X IS " + str(x))
+				depCounterMax = 4
+				if len(decodedInstr) < x + 4:
+					depCounterMax = len(decodedInstr) - x - 1
+					print("Setting length to " + str(depCounterMax))
+				for depCounter in range(depCounterMax):
+					print("DEP COUNTER IS " + str(depCounter))
+					instrToCheck = decodedInstr[x + depCounter + 1 + instrInserted]
+					if depReg in instrToCheck:
+						if depReg != instrToCheck[1]: # makes sure reg isn't the destination
+							instrInserted += 1
+							decodedInstr.insert(x+depCounter, noOpInstr)
+							print("INSERTED NOP")
+							insertedNoOp = True
+		if not insertedNoOp:
+			break
+
+	# PRINTS EVERYTHING OUT FOR DEBUG
 	for x in range(len(decodedInstr)):
-		instr = decodedInstr[x]
-		if instr[0] == instrToOpCode['MUL'] or instr[0] == instrToOpCode['MULI']:
-			# for now we'll insert just a few NOPS before this instruction to prevent any dependencies (mult takes 4 cycles, ex takes 1)
-			noOpInstr = [instrToOpCode['NOP'], 0, 0, 0]
-			#print("INSERTING NOPS")
-			decodedInstr.insert(x, noOpInstr)
-			decodedInstr.insert(x, noOpInstr)
-			decodedInstr.insert(x, noOpInstr)
+		print(decodedInstr[x])
+
+
+
+
+	# write after read doesn't happen since we're not forwarding
+
+	# write after write does affect us
+
 
 
 # more of a stretch goal to create verifiable output that can be compared to later
 def generateGoldenResults(fileNameIn):
-	print("Golden Results generation in progress...")
+	# print("Golden Results generation in progress...")
 	# goes through entire code, keeping track of values stored in memory
 	# at end of execution, prints out all the register values along with a dump of the memory
 

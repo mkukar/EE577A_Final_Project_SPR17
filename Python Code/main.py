@@ -28,7 +28,7 @@ vname = ['CLK', 'CLK_B', 'NO_OP_IN', 'OP_IN<[3:0]>', 'ADDR_IN<4>', 'ADDR_IN<[3:0
 slope = 0.01
 vih = 1.8
 tunit = "ns"
-clockPeriod = 10 # given in tunit, default is this
+clockPeriod = 5 # given in tunit, default is this
 
 # op codes map to their instruction
 instrToOpCode = {
@@ -501,7 +501,6 @@ def compileCode(fileNameIn):
 	checkDependenciesAndOptimize()
 
 
-
 def generateVectorFile(fileNameIn):
 	# now we have the instruction, the destination, and the operands. This allows us to generate the correct inputs
 	# for every given situation
@@ -569,6 +568,7 @@ def generateVectorFile(fileNameIn):
 		counter += 1.0
 
 	vecFile.close()
+
 
 # writes out a single instruction code to the file input (handles clocks, etc.)
 def writeSingleInstruction(instr, vecFile, counter, clock, precharge, sram_read, sram_write, reset):
@@ -671,7 +671,6 @@ def writeSingleInstruction(instr, vecFile, counter, clock, precharge, sram_read,
 
 
 
-
 # checks for any code dependencies (multiplier OoO execution, etc.) and solves them
 def checkDependenciesAndOptimize():
 	global decodedInstr
@@ -713,25 +712,25 @@ def checkDependenciesAndOptimize():
 		for x in range(len(decodedInstr)):
 			instr = decodedInstr[x]
 			# all instructions have a register destination (WRITE) except STORE[I]
-			if instr[0] != instrToOpCode['STORE'] or instr[0] != instrToOpCode['STOREI']:
+			if instr[0] != instrToOpCode['NOP']:
 				# now checks 5 instructions ahead
 				depReg = instr[1]
 				instrInserted = 0
 				# only checks to the end or to 5 farther instructions, whichever is less
 				# print("LENGTH IS " + str(len(decodedInstr)))
 				# print("X IS " + str(x))
-				depCounterMax = 4
-				if len(decodedInstr) < x + 4:
-					depCounterMax = len(decodedInstr) - x - 1
+				depCounterMax = 5
+				if len(decodedInstr) < x + depCounterMax:
+					depCounterMax = len(decodedInstr) - x
 					# print("Setting length to " + str(depCounterMax))
 				for depCounter in range(depCounterMax):
 					# print("DEP COUNTER IS " + str(depCounter))
-					instrToCheck = decodedInstr[x + depCounter + 1 + instrInserted]
+					instrToCheck = decodedInstr[x + depCounter + instrInserted]
 					if depReg in instrToCheck:
-						if depReg != instrToCheck[1]: # makes sure reg isn't the destination (ignore WAW)
+						if depReg != instrToCheck[1] and instrToCheck[0] != instrToOpCode['NOP']: # makes sure reg isn't the destination (ignore WAW)
 							instrInserted += 1
 							decodedInstr.insert(x+depCounter, noOpInstr)
-							# print("INSERTED NOP")
+							#print("INSERTED NOP FOR INSTRUCTION " + str(instrToCheck))
 							insertedNoOp = True
 		if not insertedNoOp:
 			break
@@ -739,7 +738,6 @@ def checkDependenciesAndOptimize():
 	# PRINTS EVERYTHING OUT FOR DEBUG
 	for instr in decodedInstr:
 		print(instr)
-
 
 
 # more of a stretch goal to create verifiable output that can be compared to later

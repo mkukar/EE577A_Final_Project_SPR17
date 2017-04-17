@@ -51,6 +51,16 @@ instrToOpCode = {
 	'SFR': 9
 }
 
+immediateInstrCodes = [
+	instrToOpCode['STOREI'],
+	instrToOpCode['LOADI'],
+	instrToOpCode['ANDI'],
+	instrToOpCode['ORI'],
+	instrToOpCode['ADDI'],
+	instrToOpCode['MULI'],
+	instrToOpCode['MINI']
+]
+
 
 # decoded instruction vector
 # holds the instruction in the form [OPCODE(int), X(int), Y(int), Z(int)]
@@ -727,11 +737,30 @@ def checkDependenciesAndOptimize():
 					# print("DEP COUNTER IS " + str(depCounter))
 					instrToCheck = decodedInstr[x + depCounter + instrInserted]
 					if depReg in instrToCheck:
-						if depReg != instrToCheck[1] and instrToCheck[0] != instrToOpCode['NOP']: # makes sure reg isn't the destination (ignore WAW)
-							instrInserted += 1
-							decodedInstr.insert(x+depCounter, noOpInstr)
-							#print("INSERTED NOP FOR INSTRUCTION " + str(instrToCheck))
-							insertedNoOp = True
+						# disregards last index if it is an 'i' instruction
+						if instrToCheck[0] in immediateInstrCodes:
+							if depReg != instrToCheck[-1] and depReg != instrToCheck[1] and depReg != instrToCheck[0] and instrToCheck[0] != instrToOpCode['NOP']:
+								instrInserted += 1
+								decodedInstr.insert(x+depCounter, noOpInstr)
+								print("INSERTED NOP FOR INSTRUCTION " + str(instrToCheck))
+								print("BECAUSE OF " + str(depReg) + " WAS INSIDE " + str(instr))
+								print("FIRST INDEX: " + str(instrToCheck[1]))
+								insertedNoOp = True
+								# should break now to restart
+								break
+						else:
+							if depReg != instrToCheck[1] and depReg != instrToCheck[0] and instrToCheck[0] != instrToOpCode['NOP']: # makes sure reg isn't the destination (ignore WAW)
+								instrInserted += 1
+								decodedInstr.insert(x+depCounter, noOpInstr)
+								print("INSERTED NOP FOR INSTRUCTION " + str(instrToCheck))
+								print("BECAUSE OF " + str(depReg) + " WAS INSIDE " + str(instr))
+								print("FIRST INDEX: " + str(instrToCheck[1]))
+								insertedNoOp = True
+								# should break now to restart
+								break
+				if insertedNoOp:
+					#print("BREAKING?")
+					break
 		if not insertedNoOp:
 			break
 

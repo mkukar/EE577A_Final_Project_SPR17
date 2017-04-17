@@ -719,7 +719,7 @@ def checkDependenciesAndOptimize():
 				# only checks to the end or to 5 farther instructions, whichever is less
 				# print("LENGTH IS " + str(len(decodedInstr)))
 				# print("X IS " + str(x))
-				depCounterMax = 5
+				depCounterMax = 6
 				if len(decodedInstr) < x + depCounterMax:
 					depCounterMax = len(decodedInstr) - x
 					# print("Setting length to " + str(depCounterMax))

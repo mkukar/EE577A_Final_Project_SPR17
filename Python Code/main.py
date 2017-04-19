@@ -44,11 +44,11 @@ instrToOpCode = {
 	'ADD': 7,
 	'ADDI': 6,
 	'MUL': 13,
-	'MULI': 12,
+	'MULI': 12, # 0b1100
 	'MIN': 11,
 	'MINI': 10,
-	'SFL': 8,
-	'SFR': 9
+	'SFL': 9,
+	'SFR': 8
 }
 
 immediateInstrCodes = [
@@ -689,29 +689,29 @@ def checkDependenciesAndOptimize():
 
 	noOpInstr = [instrToOpCode['NOP'], 0, 0, 0]
 	insertedNoOp = False
-	while True:
 
-		insertedNoOp = False
 
-		# now we'll first check for basic multiplier dependencies (the multiplier gets 2 NOPs after it)
-		for x in range(len(decodedInstr)):
-			instr = decodedInstr[x]
-			if instr[0] == instrToOpCode['MUL'] or instr[0] == instrToOpCode['MULI']:
-				# for now we'll insert just a few NOPS before this instruction to prevent any dependencies (mult takes 4 cycles, ex takes 1)
-				#print("INSERTING NOPS")
-				# realistically need a NOP in the 3rd and the other first two are not required unless there is some data dependency (solved by next step anyways)
-				decodedInstr.insert(x, noOpInstr)
-				decodedInstr.insert(x, noOpInstr)
-				decodedInstr.insert(x, noOpInstr)
 
-				# UNTESTED IDEA FOLLOWS:
-				# decodedInstr.insert(x+2, noOpInstr)
-				insertedNoOp = True # makes sure we iterate across the entire list until no more dependencies exist (changes list length)
+	'''
+	# OLD METHOD (BAD)
+	for x in range(len(decodedInstr)):
+		instr = decodedInstr[x]
+		print("DECODED INSTR:" + str(instr))
+		if instr[0] == instrToOpCode['MUL'] or instr[0] == instrToOpCode['MULI']:
+			# for now we'll insert just a few NOPS before this instruction to prevent any dependencies (mult takes 4 cycles, ex takes 1)
+			#print("INSERTING NOPS")
+			# realistically need a NOP in the 3rd and the other first two are not required unless there is some data dependency (solved by next step anyways)
+			decodedInstr.insert(x+1, noOpInstr)
+			decodedInstr.insert(x+1, noOpInstr)
+			decodedInstr.insert(x+1, noOpInstr)
+			decodedInstr.insert(x+1, noOpInstr)
+			decodedInstr.insert(x+1, noOpInstr)
 
-		if not insertedNoOp:
-			break
+			# UNTESTED IDEA FOLLOWS:
+			# decodedInstr.insert(x+2, noOpInstr)
 
 	insertedNoOp = False
+	'''
 
 	while True:
 
@@ -763,6 +763,28 @@ def checkDependenciesAndOptimize():
 					break
 		if not insertedNoOp:
 			break
+
+	x = 0
+	y = len(decodedInstr)
+	while x != y:
+		instr = decodedInstr[x]
+		if instr[0] == instrToOpCode['MUL'] or instr[0] == instrToOpCode['MULI']:
+			# makes sure there's 5 instructions ahead to insert into
+			if x + 5 < len(decodedInstr):
+				print("INSERTING!!!!")
+				decodedInstr.insert(x+5, noOpInstr)
+			else:
+				instrsToInsert = x + 5 - len(decodedInstr)
+				for i in range(instrsToInsert):
+					decodedInstr.insert(len(decodedInstr) - 1, noOpInstr)
+
+			#decodedInstr.insert(x+1, noOpInstr)
+			#decodedInstr.insert(x+1, noOpInstr)
+			#decodedInstr.insert(x+1, noOpInstr)
+			#decodedInstr.insert(x+1, noOpInstr)
+			#decodedInstr.insert(x+1, noOpInstr) # really only this instruction needs to be inserted
+		x += 1
+		y = len(decodedInstr)
 
 	# PRINTS EVERYTHING OUT FOR DEBUG
 	for instr in decodedInstr:

@@ -28,7 +28,7 @@ vname = ['CLK', 'CLK_B', 'NO_OP_IN', 'OP_IN<[3:0]>', 'ADDR_IN<4>', 'ADDR_IN<[3:0
 slope = 0.01
 vih = 1.8
 tunit = "ns"
-clockPeriod = 5 # given in tunit, default is this
+clockPeriod = 10 # given in tunit, default is this
 
 # op codes map to their instruction
 instrToOpCode = {
@@ -541,13 +541,21 @@ def generateVectorFile(fileNameIn):
 	writeSingleInstruction([instrToOpCode['NOP'],0,0,0], vecFile, counter, 1, 0, 0, 0, 0)
 	counter += 1.0
 	for instr in decodedInstr:
-
-		writeSingleInstruction(instr, vecFile, counter, 0, 1, 0, 0, 1) # precharge state for half of clock LOW
+		# precharge is now unique depending on the instruction
+		# IF IT IS A MEMORY INSTRUCTION, THIS BECOMES MORE IMPORTANT TO ADJUST
+		# over 10ns clock, for READ - precharge = 1, read/write = 0 for 5ns, then read = 1, precharge/write = 0 for 5ns
+		# for WRITE - precharge/read/write = 1 for 5ns, then precharge/write = 1, read = 0 for 5ns
+		if instr[0] == instrToOpCode['LOAD']: # READ INSTRUCTION
+			writeSingleInstruction(instr, vecFile, counter, 0, 1, 0, 0, 1) # precharge state for half of clock LOW
+		elif instr[0] == instrToOpCode['STORE'] or instr[0] == instrToOpCode['STOREI']:
+			writeSingleInstruction(instr, vecFile, counter, 0, 1, 1, 1, 1) # precharge state for half of clock LOW
+		else:
+			writeSingleInstruction(instr, vecFile, counter, 0, 1, 0, 0, 1) # precharge state for half of clock LOW
 		counter += 0.5
 
 		# if instruction is STORE or STOREI, we write to SRAM.
 		if instr[0] == instrToOpCode['STORE'] or instr[0] == instrToOpCode['STOREI']:
-			writeSingleInstruction(instr, vecFile, counter, 0, 0, 0, 1, 1)
+			writeSingleInstruction(instr, vecFile, counter, 0, 1, 0, 1, 1)
 		# if instruction is LOAD, we read from SRAM
 		elif instr[0] == instrToOpCode['LOAD']:
 			writeSingleInstruction(instr, vecFile, counter, 0, 0, 1, 0, 1)
